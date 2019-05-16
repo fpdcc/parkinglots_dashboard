@@ -1,0 +1,5 @@
+postgresql:
+    CREATEENGINE: 'DB connection'
+
+MAPBOX:
+    TOKEN: 'YOUR TOKEN'
