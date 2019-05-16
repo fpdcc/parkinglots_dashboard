@@ -1,16 +1,18 @@
 import dash
 from dash.dependencies import Input, Output, State
 import dash_core_components as dcc
+import dash_bootstrap_components as dbc
 import dash_html_components as html
 import dash_table as dt
-import json
+from dash_table.Format import Format
 import plotly
 from plotly import graph_objs as go
 from plotly.graph_objs import *
-import pandas as pd
+import modin.pandas as pd
 import numpy as np
 from sqlalchemy import create_engine
 import yaml
+import json
 
 #external_stylesheet = ['https://codepen.io/glw/pen/Mzxpax.css']
 
@@ -42,28 +44,50 @@ df  = pd.read_csv('./data/parkinglots_simplified_centroid_4326_v2.csv')
 zones = df['zone'].unique()
 zones = np.append(zones, ['All'])
 
-layout = dict(
-    autosize=True,
-    height=800,
-    margin=dict(
-        l=35,
-        r=35,
-        b=35,
-        t=45
-    ),
-    hovermode="closest",
-    legend=dict(font=dict(size=10), orientation='h'),
-    title='Parking Lots',
-    mapbox = dict(
-        accesstoken = mapbox_access_token,
-        center = dict(
-            lat = 41.808611,
-            lon = -87.888889
+navbar = dbc.NavbarSimple(
+    children=[
+        dbc.NavItem(dbc.NavLink("Buildings", href="#")),
+        dbc.DropdownMenu(
+            children=[
+                dbc.DropdownMenuItem("Data Sets", header=True),
+                dbc.DropdownMenuItem("Trails", href="#"),
+                dbc.DropdownMenuItem("Parking Lots", href="#"),
+                dbc.DropdownMenuItem("Picnic Groves", href="#"),
+            ],
+            nav=True,
+            in_navbar=True,
+            label="More",
         ),
-        zoom = 9,
-        style = 'light'
-    )
+    ],
+    brand="FPCC Data",
+    brand_href="#",
+    color="green",
+    dark=True,
 )
+
+
+maplayout = dict(
+                autosize=True,
+                height=800,
+                margin=dict(
+                    l=35,
+                    r=35,
+                    b=35,
+                    t=45
+                ),
+                hovermode="closest",
+                legend=dict(font=dict(size=10), orientation='h'),
+                title='Parking Lots',
+                mapbox = dict(
+                    accesstoken = mapbox_access_token,
+                    center = dict(
+                        lat = 41.808611,
+                        lon = -87.888889
+                    ),
+                    zoom = 9,
+                    style = 'light'
+                )
+            )
 
 def gen_map(df):
     return {
@@ -82,51 +106,60 @@ def gen_map(df):
                     }
                 }
             ],
-        "layout": layout
+        "layout": maplayout
     }
 
-app.layout = html.Div([
-    html.H4('FPDCC \Parking Lots'),
-    html.Div([
+body = dbc.Container([
+
+    html.Div(
         dcc.Dropdown(
             id='yaxis',
             options=[{'label': i.title(), 'value': i} for i in zones],
             value='All'
-        )
-    ],style={'width': '48%', 'float': 'left', 'display':'inline-block', 'padding-bottom': '5px'}),
+        ),style={'width': '48%', 'float': 'left', 'display':'inline-block', 'padding-bottom': '5px'}),
+
     html.Button(
         id='submit-button',
         n_clicks=0,
         children='Submit',
         style={'fontSize':18, 'display':'inline-block'}
     ),
-    html.Div([
+
+    html.Div(
         dcc.Graph(
         	id = 'map',
         	figure = gen_map(df)
-        )
-    ]),
+            )
+        ),
 
-
-        html.Div([
-            dcc.Graph(id = 'graph-lots')
-    ], style={'margin': 0, 'height': 900, 'height': '33%'}),
+    html.Div(
+        dcc.Graph(id = 'graph-lots'), style={'margin': 0, 'height': 900, 'height': '33%'}),
 
     html.Div([
-        dt.DataTable(
-            id = 'datatable-lots',
-            data = df.to_dict('records'),
-            columns = sorted(df.columns.difference(['geom'])),
-            row_selectable="multi",
-            sorting=True,
-            filtering=True,
-            selected_rows=[],
-        )
-    ], style={'margin': 0, 'width':'100%', 'height': '33%', 'verticalAlign':'top'}),
+        dbc.Row([
+            dt.DataTable(
+                id = 'datatable-lots',
+                data = df.to_dict("records"),
+                columns = [{"name": i, "id": i, "type": "text"} for i in sorted(df.columns.difference(['geom']))],
+                row_selectable="multi",
+                sorting=True,
+                filtering=True,
+                selected_rows=[],
+            ),
+            #style={'margin': 0, 'width':'100%', 'height': '33%', 'verticalAlign':'top'}
+        ]),
 
-    html.Div(id = 'selected-indexes'),
+        html.Div(id = 'selected-indexes'),
+    ])
 
-],style={'width': '90%','height': '90%'})
+])
+#end container
+
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+
+app.layout = html.Div([navbar, body])
+
+## -- Callbacks -- ##
 
 # Dropdown and submit button callback to DataTable
 @app.callback(
@@ -140,7 +173,6 @@ def zone_parkinglots(submitbutton, value):
         dff = df[df['zone'] == value]
         data = dff.to_dict('records')
         print(type(data))
-        print(data)
     return data
 
 # draw map on new dropdown selection
@@ -190,7 +222,6 @@ def update_figure(data, selected_rows):
 #app.css.append_css({
 #    'external_url': 'https://codepen.io/glw/pen/Mzxpax.css'
 #})
-
 
 if __name__ == '__main__':
     app.run_server(debug=True)
