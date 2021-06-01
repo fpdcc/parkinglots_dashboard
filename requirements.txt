@@ -40,5 +40,5 @@ Shapely==1.6.4.post2
 six==1.11.0
 SQLAlchemy==1.2.12
 traitlets==4.3.2
-urllib3==1.23
+urllib3==1.26.5
 Werkzeug==0.14.1
